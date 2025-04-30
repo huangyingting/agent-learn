@@ -5,6 +5,7 @@ description = "ai agent examples"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fast-flights>=2.2",
     "helium>=5.1.1",
     "pillow>=11.2.1",
     "pydub>=0.25.1",

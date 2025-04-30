@@ -1,0 +1,14 @@
+[project]
+name = "agent-learn"
+version = "0.1.0"
+description = "ai agent examples"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "helium>=5.1.1",
+    "pillow>=11.2.1",
+    "pydub>=0.25.1",
+    "python-magic>=0.4.27",
+    "selenium>=4.31.0",
+    "smolagents[litellm,openai,telemetry]>=1.14.0",
+]

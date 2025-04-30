@@ -6,8 +6,16 @@ from smolagents.cli import load_model
 from dotenv import load_dotenv
 import requests
 from lxml import html
+from openinference.instrumentation.smolagents import SmolagentsInstrumentor
+from phoenix.otel import register
 
 load_dotenv()
+
+register(
+    project_name="smolagents_trip_planner",
+)
+SmolagentsInstrumentor().instrument(skip_dep_check=True)
+
 
 def parse_arguments():
   parser = argparse.ArgumentParser(
@@ -21,7 +29,7 @@ def parse_arguments():
   parser.add_argument(
       "--model-id",
       type=str,
-      default="azure/o4-mini",
+      default="azure/gpt-4.1-mini",
       help="The model ID to use for the specified model type",
   )
   return parser.parse_args()
@@ -245,6 +253,14 @@ def main():
   args = parse_arguments()
   model = load_model(args.model_type, args.model_id)
 
+  flight_agent = ToolCallingAgent(
+      tools=[search_flights],
+      model=model,
+      max_steps=10,
+      name="flight_agent",
+      description="When searching for flights between locations, use common sense to identify the appropriate airports. If a location lacks a suitable airport (like Redmond, WA), automatically select the nearest major alternative (like Sea-Tac) without requiring prompting. Always verify airport selections are practical for international or domestic travel needs.",
+  )
+
   hotel_agent = ToolCallingAgent(
       tools=[search_hotels],
       model=model,
@@ -253,18 +269,10 @@ def main():
       description="Search for hotels in a specific location.",
   )
 
-  hotel_agent = ToolCallingAgent(
-      tools=[search_flights],
-      model=model,
-      max_steps=10,
-      name="flight_agent",
-      description="Use common sense to search for flights between two locations. If no direct options are available, recommend flights from the nearest major airport—for instance, if Redmond, Washington doesn’t have international flights, suggest Sea-Tac as the closest alternative.",
-  )
-
   manager_agent = CodeAgent(
       tools=[],
       model=model,
-      managed_agents=[hotel_agent],
+      managed_agents=[flight_agent, hotel_agent],
       additional_authorized_imports=["time", "numpy", "pandas"],
   )
 

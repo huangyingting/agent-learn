@@ -1,4 +1,3 @@
-import argparse
 from io import BytesIO
 from time import sleep
 import helium
@@ -10,15 +9,10 @@ from selenium.webdriver.common.keys import Keys
 from smolagents import CodeAgent, DuckDuckGoSearchTool, tool
 from smolagents.agents import ActionStep
 from smolagents.cli import load_model
-from openinference.instrumentation.smolagents import SmolagentsInstrumentor
-from phoenix.otel import register
+from utils import parse_arguments, instrument
 
 load_dotenv()
-
-register(
-    project_name="smolagents_vision_web_browser",
-)
-SmolagentsInstrumentor().instrument(skip_dep_check=True)
+instrument("smolagents_vision_web_browser")
 
 # default_prompt = """
 # Please search for images of Wonder Woman and generate a detailed visual description based on those images. Additionally, navigate to Wikipedia to gather key details about her appearance. 
@@ -28,30 +22,6 @@ default_prompt = """
 I'm trying to find how hard I have to work to get a repo in github.com/trending.
 Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
 """
-
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
-    parser.add_argument(
-        "prompt",
-        type=str,
-        nargs="?",  # Makes it optional
-        default=default_prompt,
-        help="The prompt to run with the agent",
-    )
-    parser.add_argument(
-        "--model-type",
-        type=str,
-        default="LiteLLMModel",
-        help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)",
-    )
-    parser.add_argument(
-        "--model-id",
-        type=str,
-        default="azure/gpt-4.1-mini",
-        help="The model ID to use for the specified model type",
-    )
-    return parser.parse_args()
-
 
 def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
@@ -207,9 +177,8 @@ def main():
 
     # Run the agent with the provided prompt
     agent.python_executor("from helium import *")
-    agent.run(args.prompt + helium_instructions)
+    agent.run(default_prompt + helium_instructions)
     stop_driver()
-
 
 
 if __name__ == "__main__":

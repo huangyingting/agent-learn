@@ -1,0 +1,67 @@
+{
+  "react": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Given a claim and the current trajectory (which includes your previous thoughts, tool selections, arguments, and observations), determine the most effective next step to gather all Wikipedia article titles relevant to verifying or refuting the claim. \n\nFor each step:\n- Clearly explain your reasoning and plan in `next_thought`, considering what information you have already gathered, what is still missing, and how you intend to proceed.\n- Choose the most appropriate tool for your next action by setting `next_tool_name` to one of: `search_wikipedia` (to search for relevant articles), `lookup_wikipedia` (to retrieve the content of a specific article), or `finish` (if all necessary information has been collected).\n- Provide the required arguments for the chosen tool in `next_tool_args`, formatted as a JSON object.\n\nBe thorough in your reasoning, especially in disambiguating entities, resolving pronouns, and planning multi-hop searches when needed. Continue this process iteratively, using the trajectory to inform your decisions, until you are ready to finish and extract all relevant Wikipedia titles. \n\nYour output for each turn should include `next_thought`, `next_tool_name`, and `next_tool_args`.",
+      "fields": [
+        {
+          "prefix": "Claim:",
+          "description": "${claim}"
+        },
+        {
+          "prefix": "Trajectory:",
+          "description": "${trajectory}"
+        },
+        {
+          "prefix": "Next Thought:",
+          "description": "${next_thought}"
+        },
+        {
+          "prefix": "Next Tool Name:",
+          "description": "${next_tool_name}"
+        },
+        {
+          "prefix": "Next Tool Args:",
+          "description": "${next_tool_args}"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "extract.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Find all Wikipedia titles relevant to verifying (or refuting) the claim.",
+      "fields": [
+        {
+          "prefix": "Claim:",
+          "description": "${claim}"
+        },
+        {
+          "prefix": "Trajectory:",
+          "description": "${trajectory}"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Titles:",
+          "description": "${titles}"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "2.6.21",
+      "cloudpickle": "3.1"
+    }
+  }
+}

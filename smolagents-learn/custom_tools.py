@@ -1,38 +1,80 @@
+from smolagents import tool
+from urllib.parse import urlparse
+import os
+import requests
+import io
+from openai import AzureOpenAI
+from pydub import AudioSegment
+import magic
 from fast_flights import FlightData, Passengers, Result, get_flights
 from datetime import datetime
-from smolagents import CodeAgent, ToolCallingAgent, tool
-import argparse
-from smolagents.cli import load_model
-from dotenv import load_dotenv
-import requests
 from lxml import html
-from openinference.instrumentation.smolagents import SmolagentsInstrumentor
-from phoenix.otel import register
-
-load_dotenv()
-
-register(
-    project_name="smolagents_trip_planner",
-)
-SmolagentsInstrumentor().instrument(skip_dep_check=True)
 
 
-def parse_arguments():
-  parser = argparse.ArgumentParser(
-      description="Run a web browser automation script with a specified model.")
-  parser.add_argument(
-      "--model-type",
-      type=str,
-      default="LiteLLMModel",
-      help="The model type to use (e.g., OpenAIServerModel, LiteLLMModel, TransformersModel, HfApiModel)",
+@tool
+def transcribe(filepath_or_url: str, end_seconds: int = -1) -> str:
+  """
+  Transcribe audio from a file or URL.
+  Args:
+      filepath_or_url: The file path or URL of the audio to transcribe, supported formats .mpeg, .mp4, .mp3, .wav, .webm, .m4a, .mpga
+      end_seconds: The end time in seconds to trim the audio (default: -1 for no trim)
+  """
+  ALLOWED_MIME_TYPES = {
+      "audio/mpeg", "audio/mp4", "audio/mp3",
+      "audio/wav", "audio/webm", "audio/m4a",
+      "audio/mpga"
+  }
+
+  parsed_url = urlparse(filepath_or_url)
+  is_remote = parsed_url.scheme in ['http', 'https']
+
+  if is_remote:
+    response = requests.get(filepath_or_url, stream=True)
+    response.raise_for_status()  # Raise exception for HTTP errors
+
+    content = io.BytesIO(response.content)
+
+    content_type = response.headers.get('Content-Type')
+    if not content_type or content_type not in ALLOWED_MIME_TYPES:
+      content.seek(0)
+      mime = magic.from_buffer(content.read(2048), mime=True)
+      content.seek(0)
+      if mime not in ALLOWED_MIME_TYPES:
+        raise ValueError(f"Unsupported file format: {mime}")
+
+    audio = AudioSegment.from_file(content)
+
+  else:
+    file_path = filepath_or_url
+
+    mime = magic.from_file(file_path, mime=True)
+    if mime not in ALLOWED_MIME_TYPES:
+      raise ValueError(f"Unsupported file format: {mime}")
+
+    audio = AudioSegment.from_file(file_path)
+
+  if end_seconds > 0 and end_seconds < len(audio) / 1000:
+    trimed_audio = audio[:end_seconds * 1000]
+  else:
+    trimed_audio = audio
+
+  buffer = io.BytesIO()
+  trimed_audio.export(buffer, format="mp3")
+  buffer.seek(0)
+  buffer.name = "trimed_audio.mp3"
+
+  client = AzureOpenAI(
+      azure_deployment=os.getenv("AZURE_OPEN_TRANSCRIBE_DEPLOYMENT"),
+      api_version=os.getenv("OPENAI_API_VERSION"),
+      azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+      api_key=os.getenv("AZURE_OPENAI_API_KEY"),
   )
-  parser.add_argument(
-      "--model-id",
-      type=str,
-      default="azure/gpt-4.1-mini",
-      help="The model ID to use for the specified model type",
+
+  transcript = client.audio.transcriptions.create(
+      model=os.getenv("AZURE_OPEN_TRANSCRIBE_DEPLOYMENT"),
+      file=buffer,
   )
-  return parser.parse_args()
+  return transcript.text
 
 
 def get_hotel_search_repsonse(query_string):
@@ -247,41 +289,3 @@ def search_hotels(
     return hotels_data
   else:
     return {"error": f"Failed to get hotel data. Status code: {response.status_code}"}
-
-
-def main():
-  args = parse_arguments()
-  model = load_model(args.model_type, args.model_id)
-
-  flight_agent = ToolCallingAgent(
-      tools=[search_flights],
-      model=model,
-      max_steps=10,
-      name="flight_agent",
-      description="When searching for flights between locations, use common sense to identify the appropriate airports. If a location lacks a suitable airport (like Redmond, WA), automatically select the nearest major alternative (like Sea-Tac) without requiring prompting. Always verify airport selections are practical for international or domestic travel needs.",
-  )
-
-  hotel_agent = ToolCallingAgent(
-      tools=[search_hotels],
-      model=model,
-      max_steps=10,
-      name="hotel_agent",
-      description="Search for hotels in a specific location.",
-  )
-
-  manager_agent = CodeAgent(
-      tools=[],
-      model=model,
-      managed_agents=[flight_agent, hotel_agent],
-      additional_authorized_imports=["time", "numpy", "pandas"],
-  )
-
-  manager_agent.run(
-      "Help me plan a trip from Shanghai to Redmond, Washington. I need to find a flight and a hotel. "
-      "The flight should be on 2025-05-15, and I want to stay in a hotel for 3 nights. "
-      "Please provide me with the best options for both flights and hotels. "
-  )
-
-
-if __name__ == "__main__":
-  main()

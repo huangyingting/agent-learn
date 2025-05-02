@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GITEE_REPOSITORY: huangyingting/mcp-learn
+  GITEE_REPOSITORY: huangyingting/agent-learn
 jobs:
   sync_to_gitee:
     runs-on: ubuntu-latest

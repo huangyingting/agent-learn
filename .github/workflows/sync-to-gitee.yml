@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GITEE_REPOSITORY: huangyingting/agent-learn
+  GITEE_REPOSITORY: huangyingting/mcp-learn
 jobs:
   sync_to_gitee:
     runs-on: ubuntu-latest
@@ -22,7 +22,7 @@ jobs:
       #   # https://github.com/abersheeran/sync-gitee-mirror
       #   with:
       #     repository: ${{ env.GITEE_REPOSITORY }}
-      #     username: ${{ vars.GITEE_USERNAME }}
+      #     username: ${{ secrets.GITEE_USERNAME }}
       #     password: ${{ secrets.GITEE_PAT }}
 
       - uses: actions/checkout@v4
